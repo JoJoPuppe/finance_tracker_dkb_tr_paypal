@@ -1,0 +1,78 @@
+version: '3.9'
+
+services:
+  # Frontend Vue.js application
+  frontend:
+    build:
+      context: ./money-frontend
+      dockerfile: Dockerfile
+    container_name: money-frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - money-network
+
+  # Backend Flask application
+  backend:
+    build:
+      context: ./money-backend
+      dockerfile: Dockerfile
+    container_name: money-backend
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URI=mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db/${DB_NAME}
+      # Add other environment variables as needed
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./money-backend/logs:/app/logs
+      - ./money-backend/data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/api/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - money-network
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: money-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - money-network
+
+networks:
+  money-network:
+    external: true

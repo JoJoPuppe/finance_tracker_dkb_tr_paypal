@@ -1,0 +1,22 @@
+@import './base.css';
+
+html, body, #app {
+  @apply m-0 p-0 w-full h-full overflow-x-hidden mx-auto;
+}
+
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+

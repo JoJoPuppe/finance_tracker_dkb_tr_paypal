@@ -1,0 +1,20 @@
+{
+	"rule": {
+		"name": "Edeka",
+		"category": "Edeka",
+		"parent": "",
+		"execute_on_no_category": false,
+		"conditions": [
+			{
+				"field": "purpose",
+				"operator": "equals",
+				"value": "Edeka"
+			},
+			{
+				"field": "payer",
+				"operator": "equals",
+				"value": "Loeper"
+			}
+		]
+	}
+}
