@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: money-frontend
     ports:
-      - "8080:8080"
+      - "8080:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -20,7 +20,7 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - money-network
+      - nginx-proxy-manager_default
 
   # Backend Flask application
   backend:
@@ -31,12 +31,17 @@ services:
     environment:
       - FLASK_ENV=production
       - DATABASE_URI=mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db/${DB_NAME}
-      # Add other environment variables as needed
+      - FLASK_APP=app
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=your-secret-key-here
+      - TRADEREPUBLIC_IBAN=${TRADEREPUBLIC_IBAN}
+      - TRADEREPUBLIC_SAVING_PLAN_IBAN=${TRADEREPUBLIC_SAVING_PLAN_IBAN}
+      - MAIN_IBAN=${MAIN_IBAN}
     ports:
       - "5005:5005"
     volumes:
       - ./money-backend/logs:/app/logs
-      - ./money-backend/data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -48,7 +53,7 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - money-network
+      - nginx-proxy-manager_default
 
   # MySQL Database
   db:
@@ -71,8 +76,8 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - money-network
+      - nginx-proxy-manager_default
 
 networks:
-  money-network:
+  nginx-proxy-manager_default:
     external: true
