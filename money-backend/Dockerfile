@@ -22,7 +22,7 @@ COPY . .
 RUN mkdir -p logs
 
 # Set environment variables
-ENV FLASK_APP=app.py
+ENV FLASK_APP=run.py
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 EXPOSE 5005
 
 # Command to run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5005", "--workers", "4", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5005", "--workers", "4", "run:app"]
