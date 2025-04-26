@@ -1,46 +1,123 @@
 <template>
   <div class="h-screen flex flex-col overflow-hidden">
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-     
-    </header>
 
     <!-- Main Layout: Side Panels and Content -->
     <div class="flex flex-col md:flex-row gap-x-2 h-full overflow-hidden">
       <!-- Side Panel with Rules List -->
-      <div class="w-1/8">
-        <h2 class="text-xl font-bold text-gray-600 mb-2">Rules</h2>
-        <div class="border-r border-r-black py-4 overflow-auto h-[calc(100vh-110px)]">
-          <rule-list
-            :categories="categories"
-            @select-rule="handleRuleSelect"
-            @edit-rule="handleEditRule"
-            @delete-rule="handleDeleteRule"
-            @revert-rule="handleRevertRule"
-          />
-        </div>
+      <div class="">
+        <div class="w-1/4 flex gap-x-3 h-10">
+          <!-- Select User dropdown placeholder (commented out for now) -->
+          <!-- <select class="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600">
+            <option>Select User</option>
+          </select> -->
+          <select 
+            v-model="selectedUserId" 
+            class="border border-black px-3 py-2 text-black bg-white cursor-pointer"
+          >
+            <option value="" disabled>Select User</option>
+            <option v-for="user in users" :key="user.id" :value="user.id">
+              {{ user.name }}
+            </option>
+          </select>
+          
+          <label class="relative cursor-pointer border border-black bg-white hover:bg-gray-600 hover:text-white hover:border-gray-600 text-black px-4 py-2 transition-colors duration-300 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a 1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+            <span class="mr-2">CSV</span>
+            <input 
+              type="file" 
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+              accept=".csv"
+              @change="handleFileUpload"
+              :disabled="!selectedUserId"
+            />
+          </label>
+
+          
+          <!-- Create Category Button -->
+          <button 
+            @click="handleCreateCategory" 
+            class="bg-green-600 cursor-pointer hover:bg-green-700 text-white px-4 py-2 flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Category
+          </button>
+          
+          <!-- Create Rule Button -->
+          <button 
+            @click="handleCreateRule" 
+            class="bg-purple-600 cursor-pointer hover:bg-purple-700 text-white px-4 py-2 flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Rule
+          </button>
+
+          <div 
+            v-if="showToast" 
+            class="fixed top-5 right-5 p-4 rounded-md shadow-lg transition-all duration-500"
+            :class="{ 
+              'bg-green-500': toastType === 'success',
+              'bg-red-500': toastType === 'error'
+            }"
+          >
+            {{ toastMessage }}
+          </div>
       </div>
 
-      <!-- Side Panel with Categories List -->
-      <div class="w-1/6">
-        <h2 class="text-xl font-bold text-gray-600 mb-2">Categories</h2>
-        <div class="border-r border-r-black p-1 overflow-auto h-[calc(100vh-110px)]">
-          <category-list
-            :categories="rootCategories"
-            @edit="editCategory"
-            @delete="confirmDeleteCategory"
-          />
+      <div class="w-1/4 flex pt-6">
+        <div class="">
+          <h2 class="text-xl font-bold text-gray-600 mb-2">Rules</h2>
+          <div class="border-r border-r-black py-4 overflow-auto h-[calc(100vh-130px)]">
+            <rule-list
+              ref="ruleListComponent"
+              :categories="categories"
+              @select-rule="handleRuleSelect"
+              @edit-rule="handleEditRule"
+              @delete-rule="handleDeleteRule"
+              @revert-rule="handleRevertRule"
+            />
+          </div>
+        </div>
+
+        <!-- Side Panel with Categories List -->
+        <div class="">
+          <h2 class="text-xl font-bold text-gray-600 mb-2">Categories</h2>
+          <div class="border-r border-r-black p-1 overflow-auto h-[calc(100vh-130px)]">
+            <category-list
+              :categories="rootCategories"
+              @edit="editCategory"
+              @delete="confirmDeleteCategory"
+            />
+          </div>
+        </div>
         </div>
       </div>
       
       <!-- Main Content Area -->
-      <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 flex flex-col overflow-hidden pl-4">
         <!-- Rule Application Results -->
         <div v-if="ruleApplyResult" class="bg-green-900 bg-opacity-30 border border-green-600 rounded-lg p-4 mb-4">
-          <div class="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
-            <p class="text-green-300">{{ ruleApplyResult }}</p>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+              <p class="text-green-300">{{ ruleApplyResult }}</p>
+            </div>
+            <button 
+              @click="hideRuleResult" 
+              class="text-green-400 hover:text-green-200 transition-colors"
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -59,39 +136,7 @@
           :highlight-key="searchColumn"
         />
     
-        <!-- Forms section - Row with Rule Form and Category Form -->
-        <div class="flex flex-col lg:flex-row gap-4 mb-4">
-          <!-- Rule Creation/Editing Form -->
-          <div class="flex-1 bg-gray-800 bg-opacity-60 rounded-lg p-4 border border-gray-700">
-            <h2 class="text-xl font-bold text-purple-400 mb-2">
-              {{ currentEditRule ? 'Edit Rule' : 'Create Rule' }}
-            </h2>
-            <rule-form
-              :available-columns="availableColumns"
-              :categories="categories"
-              :edit-rule="currentEditRule"
-              @rule-created="handleRuleCreated"
-              @rule-updated="handleRuleUpdated"
-              @cancel-edit="cancelEdit"
-              @error="handleRuleError"
-            />
-          </div>
-
-          <!-- Category Creation/Editing Form - Always visible -->
-          <div class="flex-1 bg-gray-800 bg-opacity-60 rounded-lg p-4 border border-gray-700">
-            <h2 class="text-xl font-bold text-purple-400 mb-2">
-              {{ categoryFormMode === 'create' ? 'Create Category' : 'Edit Category' }}
-            </h2>
-            <category-form
-              :parent-categories="availableParents"
-              :initial-data="categoryFormData"
-              :is-edit-mode="categoryFormMode === 'edit'"
-              :has-subcategories="categoryFormMode === 'edit' && hasSubcategories(categoryFormData.id)"
-              @submit="categoryFormMode === 'create' ? createCategory($event) : updateCategory($event)"
-              @close="resetCategoryForm"
-            />
-          </div>
-        </div>
+     
 
         <!-- Transactions by Category Section -->
         <div class="flex-1 overflow-hidden">
@@ -109,6 +154,42 @@
       :type="toast.type" 
       :is-visible="toast.isVisible" 
     />
+    
+    <!-- Category Modal -->
+    <Modal 
+      :is-open="showCategoryModal" 
+      :title="categoryFormMode === 'create' ? 'Create Category' : 'Update Category'"
+      @close="showCategoryModal = false"
+      @update:isOpen="showCategoryModal = $event"
+    >
+      <category-form
+        :parent-categories="availableParents"
+        :initial-data="categoryFormData"
+        :is-edit-mode="categoryFormMode === 'edit'"
+        :has-subcategories="categoryFormMode === 'edit' && hasSubcategories(categoryFormData.id)"
+        @submit="handleCategorySubmit"
+        @close="closeCategoryModal"
+      />
+    </Modal>
+
+    <!-- Rule Modal -->
+    <Modal 
+      :is-open="showRuleModal" 
+      :title="currentEditRule ? 'Update Rule' : 'Create Rule'"
+      size="large"
+      @close="closeRuleModal"
+      @update:isOpen="showRuleModal = $event"
+    >
+      <rule-form
+        :available-columns="availableColumns"
+        :categories="categories"
+        :edit-rule="currentEditRule"
+        @rule-created="handleRuleCreated"
+        @rule-updated="handleRuleUpdated"
+        @cancel-edit="closeRuleModal"
+        @error="handleRuleError"
+      />
+    </Modal>
   </div>
 </template>
 
@@ -125,6 +206,7 @@ import CategoryList from './CategoryList.vue';
 import CategoryForm from './CategoryForm.vue';
 import Toast from './Toast.vue';
 import Transactions from './Transactions.vue';
+import Modal from './Modal.vue';
 
 export default {
   name: 'RulesEditor',
@@ -136,10 +218,14 @@ export default {
     CategoryList,
     CategoryForm,
     Toast,
-    Transactions
+    Transactions,
+    Modal
   },
   
   setup() {
+    const toastMessage = ref('');
+    const toastType = ref('success');
+
     // Rule state variables
     const availableColumns = ref([]);
     const searchColumn = ref('');
@@ -149,10 +235,17 @@ export default {
     const ruleApplyResult = ref(null);
     const applyingRule = ref(false);
     const refreshTrigger = ref(0);
+    const ruleListComponent = ref(null); // Reference to the rule list component
+
+    // User selection and CSV upload functionality
+    const users = ref([]);
+    const selectedUserId = ref('');
     
     // Category state variables
     const categoryFormMode = ref('create');
     const categoryFormData = ref({ name: '', parentId: null });
+    const showCategoryModal = ref(false);
+    const showRuleModal = ref(false);
     
     // Toast notification
     const toast = reactive({
@@ -180,11 +273,81 @@ export default {
       }
       return topLevelCategories;
     });
-    
+
     // Fetch initial data when component mounts
     onMounted(async () => {
-      await Promise.all([fetchColumns(), fetchCategories()]);
+      await Promise.all([fetchColumns(), fetchCategories(), fetchUsers()]);
     });
+
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get('/api/v1/users');
+        if (response.data && response.data.status === 'success') {
+          users.value = response.data.data;
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        showToast('Error loading users. Please refresh the page.', 'error');
+      }
+    }
+
+
+    const handleFileUpload = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // Check if user is selected
+      if (!selectedUserId.value) {
+        showToast('Please select a user first', 'error');
+        return;
+      }
+      
+      // Check if file is a CSV
+      if (!file.name.endsWith('.csv')) {
+        showToast('Please select a CSV file', 'error');
+        return;
+      }
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('user_id', selectedUserId.value);
+      
+      try {
+        // Show loading toast
+        showToast('Uploading file...', 'success');
+        
+        // Send to backend using axios instead of fetch
+        const response = await axios.post('/api/v1/transactions/import', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        // Display success message
+        showToast(response.data.message || 'CSV file imported successfully');
+        
+        // Reset file input
+        event.target.value = '';
+        
+        // Trigger refresh of parent component
+        emit('refresh');
+        
+        // Refresh the page (optional)
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Error uploading CSV:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Error uploading file';
+        displayToast(errorMessage, 'error');
+        
+        // Reset file input
+        event.target.value = '';
+      }
+    };
+
     
     // Fetch column data
     const fetchColumns = async () => {
@@ -255,6 +418,7 @@ export default {
         name: category.name,
         parentId: category.parent_id
       };
+      showCategoryModal.value = true; // Show the modal when editing
     };
 
     const createCategory = async (categoryData) => {
@@ -326,6 +490,14 @@ export default {
       }
     };
     
+    // Fetch methods
+    // Method to refresh the rules list
+    const fetchRules = async () => {
+      if (ruleListComponent.value) {
+        await ruleListComponent.value.refreshRules();
+      }
+    };
+    
     // Apply a rule to all transactions
     const applyRule = async (ruleId) => {
       applyingRule.value = true;
@@ -337,6 +509,7 @@ export default {
           ruleApplyResult.value = response.data.message;
           showToast(response.data.message, 'success');
           refreshTrigger.value++;
+          await fetchRules(); // Refresh the rules list
         } else {
           showToast('Failed to apply rule to transactions', 'error');
         }
@@ -359,6 +532,7 @@ export default {
           ruleApplyResult.value = response.data.message;
           showToast(response.data.message, 'success');
           refreshTrigger.value++;
+          await fetchRules(); // Refresh the rules list
         } else {
           showToast('Failed to revert rule effects on transactions', 'error');
         }
@@ -378,6 +552,7 @@ export default {
     // Handle rule edit request
     const handleEditRule = (rule) => {
       currentEditRule.value = rule;
+      showRuleModal.value = true;
       showToast('Editing rule: ' + rule.name, 'info');
     };
     
@@ -418,6 +593,8 @@ export default {
       showToast('Rule created successfully', 'success');
       // Reset any current edit state
       currentEditRule.value = null;
+      // Close the modal
+      showRuleModal.value = false;
       applyRule(rule.id);
     };
     
@@ -425,6 +602,8 @@ export default {
     const handleRuleUpdated = (rule) => {
       showToast('Rule updated successfully', 'success');
       currentEditRule.value = null;
+      // Close the modal
+      showRuleModal.value = false;
       applyRule(rule.id);
     };
     
@@ -438,7 +617,44 @@ export default {
       toast.message = message;
       toast.type = type;
       toast.isVisible = true;
-      setTimeout(() => (toast.isVisible = false), 3000);
+      setTimeout(() => (toast.isVisible = false), 8000);
+    };
+
+    // Handle Create Category button click
+    const handleCreateCategory = () => {
+      resetCategoryForm();
+      categoryFormMode.value = 'create';
+      showCategoryModal.value = true;
+    };
+    
+    // Handle category form submission from modal
+    const handleCategorySubmit = (categoryData) => {
+      if (categoryFormMode.value === 'create') {
+        createCategory(categoryData);
+      } else {
+        updateCategory(categoryData);
+      }
+    };
+    
+    // Close the category modal
+    const closeCategoryModal = () => {
+      showCategoryModal.value = false;
+    };
+
+    // Handle Create Rule button click
+    const handleCreateRule = () => {
+      currentEditRule.value = null;
+      showRuleModal.value = true;
+    };
+
+    // Close the rule modal
+    const closeRuleModal = () => {
+      showRuleModal.value = false;
+    };
+
+    // Hide rule result
+    const hideRuleResult = () => {
+      ruleApplyResult.value = null;
     };
     
     return {
@@ -450,6 +666,12 @@ export default {
       ruleApplyResult,
       applyingRule,
       refreshTrigger,
+      ruleListComponent,
+      
+      // User data
+      users,
+      selectedUserId,
+      handleFileUpload,
       
       // Category data
       categories,
@@ -457,6 +679,8 @@ export default {
       categoryFormMode,
       categoryFormData,
       availableParents,
+      showCategoryModal,
+      showRuleModal,
       
       // Toast
       toast,
@@ -484,6 +708,14 @@ export default {
       
       // Common methods
       showToast,
+
+      // Header button methods
+      handleCreateCategory,
+      handleCreateRule,
+      handleCategorySubmit,
+      closeCategoryModal,
+      closeRuleModal,
+      hideRuleResult,
     };
   }
 };

@@ -41,7 +41,7 @@
             </button>
             -->
             <button 
-              @click.stop="$emit('edit-rule', rule)"
+              @click.stop="editRule(rule)"
               class="text-gray-400 hover:text-purple-400 p-1"
               title="Edit rule"
             >
@@ -81,7 +81,7 @@ export default {
   
   emits: ['select-rule', 'edit-rule', 'delete-rule', 'revert-rule'],
   
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const rules = ref([]);
     const isLoading = ref(true);
     const error = ref(null);
@@ -110,6 +110,11 @@ export default {
     // Call fetchRules immediately
     fetchRules();
     
+    // Expose refreshRules method to parent components
+    expose({
+      refreshRules: fetchRules
+    });
+    
     // Watch for new categories
     watch(() => props.categories, () => {
       // If categories change, update the rule display
@@ -128,6 +133,12 @@ export default {
     const selectRule = (rule) => {
       selectedRuleId.value = rule.id;
       emit('select-rule', rule);
+    };
+    
+    // Edit a rule
+    const editRule = (rule) => {
+      selectRule(rule);
+      emit('edit-rule', rule);
     };
     
     // Confirm deletion of a rule
@@ -168,6 +179,7 @@ export default {
       fetchRules,
       getCategoryName,
       selectRule,
+      editRule,
       confirmDelete
     };
   }

@@ -1,5 +1,7 @@
 # Environment variables
 .env
+backup.sql
+data
 
 # Docker volumes
 mysql_data/

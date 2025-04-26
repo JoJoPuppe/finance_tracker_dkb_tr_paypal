@@ -196,6 +196,18 @@ def import_csv():
             logger.warning("No file provided in request")
             return jsonify({"status": "error", "message": "No file provided"}), 400
 
+        # Get user_id from request form data
+        user_id = request.form.get("user_id")
+        if not user_id:
+            logger.warning("No user_id provided in request")
+            return jsonify({"status": "error", "message": "user_id is required"}), 400
+            
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            logger.error(f"Invalid user_id format: {user_id}")
+            return jsonify({"status": "error", "message": "user_id must be a valid integer"}), 400
+
         file = request.files["file"]
         if not file.filename.endswith(".csv"):
             logger.warning(f"Invalid file format: {file.filename}")
@@ -333,6 +345,7 @@ def import_csv():
                     "creditor_id": row.get("Gläubiger-ID", ""),
                     "mandate_reference": row.get("Mandatsreferenz", ""),
                     "customer_reference": row.get("Kundenreferenz", ""),
+                    "user_id": user_id,  # Add the user_id to the transaction data
                 }
 
                 transaction_data_list.append(transaction_data)

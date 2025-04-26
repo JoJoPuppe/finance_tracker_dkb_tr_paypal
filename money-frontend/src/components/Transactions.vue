@@ -1,11 +1,9 @@
 <template>
-  <div class="bg-gray-800 bg-opacity-40 h-full p-4 flex flex-col">
-    <h2 class="text-xl font-semibold text-purple-300 mb-4">Transactions</h2>
+  <div class="h-full flex flex-col">
     
     <!-- Category Selection -->
     <div class="mb-4">
-      <label for="category-select" class="block text-sm font-medium text-gray-300 mb-2">Select Category</label>
-      <div class="flex space-x-3">
+      <div class="flex gap-x-3 w-2/3 items-center">
         <Multiselect
           v-model="selectedCategoryId"
           :options="sortedCategoryOptions"
@@ -18,51 +16,50 @@
         <button 
           @click="loadTransactions"
           :disabled="!selectedCategoryId || isLoading"
-          class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="bg-purple-600 cursor-pointer hover:bg-purple-700 text-white font-medium px-4 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span v-if="isLoading">
             <span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
             Loading...
           </span>
-          <span v-else>View Transactions</span>
+          <span v-else>Submit</span>
         </button>
+        <div class="w-full">
+          <div class="relative w-full">
+            <input
+              id="search-input"
+              v-model="searchQuery"
+              @input="onSearchInput"
+              type="text"
+              placeholder="Search by payee, payer, purpose..."
+              class="w-full bg-gray-200 border border-gray-600 pl-10 pr-3 py-2 text-grey-600 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            />
+            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-600">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <div v-if="isSearching" class="absolute inset-y-0 right-0 flex items-center pr-3">
+              <span class="inline-block w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></span>
+            </div>
+          </div>
+          <p v-if="searchQuery && searchQuery.length > 0 && searchQuery.length < minSearchChars" class="mt-1 text-xs text-gray-600">
+            Enter at least {{ minSearchChars }} characters to search
+          </p>
+        </div>
       </div>
     </div>
     
     <!-- Search Transactions -->
-    <div class="mb-4">
-      <label for="search-input" class="block text-sm font-medium text-gray-300 mb-2">Search Transactions</label>
-      <div class="relative">
-        <input
-          id="search-input"
-          v-model="searchQuery"
-          @input="onSearchInput"
-          type="text"
-          placeholder="Search by payee, payer, purpose..."
-          class="w-full bg-gray-700 border border-gray-600 rounded-md pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-        />
-        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-        </div>
-        <div v-if="isSearching" class="absolute inset-y-0 right-0 flex items-center pr-3">
-          <span class="inline-block w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></span>
-        </div>
-      </div>
-      <p v-if="searchQuery && searchQuery.length > 0 && searchQuery.length < minSearchChars" class="mt-1 text-xs text-gray-400">
-        Enter at least {{ minSearchChars }} characters to search
-      </p>
-    </div>
     
     <!-- Batch Update Category Section (shown when transactions are selected) -->
-    <div v-if="selectedTransactions.length > 0" class="mb-4 p-3 bg-purple-900 bg-opacity-30 border border-purple-500 rounded-lg">
+    <div v-if="selectedTransactions.length > 0" class="py-3 ">
       <div class="flex items-center justify-between">
-        <span class="text-white font-medium">{{ selectedTransactions.length }} transaction(s) selected</span>
-        <button @click="clearSelection" class="text-gray-300 hover:text-white text-sm underline">Clear selection</button>
+        <span class="text-gray-600 font-medium">{{ selectedTransactions.length }} transaction(s) selected</span>
+        <button @click="clearSelection" class="text-gray-600 hover:text-gray-900 text-sm underline">Clear selection</button>
       </div>
       
-      <div class="mt-3 flex space-x-3">
+      <div class="mt-3 flex gap-x-3">
         <Multiselect
           v-model="batchCategoryId"
           :options="sortedBatchCategoryOptions"
@@ -75,13 +72,13 @@
         <button 
           @click="updateSelectedTransactionsCategory"
           :disabled="!batchCategoryId || isUpdating"
-          class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span v-if="isUpdating">
             <span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 align-middle"></span>
             Updating...
           </span>
-          <span v-else>Update Category</span>
+          <span v-else>Update</span>
         </button>
       </div>
     </div>
@@ -89,26 +86,26 @@
     <!-- Error Display -->
     <div v-if="error" class="bg-red-900 bg-opacity-25 border border-red-500 rounded-lg p-4 mb-4">
       <p class="text-red-400">{{ error }}</p>
-      <button @click="loadTransactions" class="text-white underline mt-2">Retry</button>
+      <button @click="loadTransactions" class="text-gray-600 underline mt-2">Retry</button>
     </div>
     
     <!-- Results Display -->
     <div v-if="transactions.length > 0" class="flex-1 flex flex-col overflow-hidden">
-      <h3 class="text-lg font-medium text-white mb-2">
+      <h3 class="text-lg font-medium text-gray-600 mb-2">
         {{ getCategoryName(selectedCategoryId) }} - {{ transactions.length }} transaction(s)
         <span v-if="hasMoreToLoad" class="text-sm text-gray-400 ml-2">(Scroll to load more)</span>
       </h3>
       
       <!-- Transactions Table with fixed height and scroll -->
       <div class="overflow-x-auto overflow-y-auto flex-1" ref="tableContainer" @scroll="handleScroll">
-        <table class="min-w-full bg-gray-700 bg-opacity-50 rounded-lg overflow-hidden">
+        <table class="min-w-full overflow-hidden text-gray-800">
           <thead>
             <tr class="bg-gray-600 sticky top-0 z-10">
               <th class="px-4 py-2 text-center text-xs font-medium text-gray-300 uppercase tracking-wider w-16">
                 <div 
                   @click="toggleAllTransactions"
-                  class="flex items-center justify-center h-8 w-8 mx-auto rounded-md cursor-pointer transition-colors"
-                  :class="areAllTransactionsSelected ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-500'"
+                  class="flex items-center justify-center h-8 w-8 mx-auto cursor-pointer transition-colors"
+                  :class="areAllTransactionsSelected ? 'bg-gray-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-500'"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -123,15 +120,15 @@
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Hash</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-600">
+          <tbody class="">
             <tr v-for="tx in transactions" :key="tx.id" 
-                class="hover:bg-gray-600 cursor-pointer"
-                :class="{'bg-purple-900 bg-opacity-20': isTransactionSelected(tx.id)}">
+                class="hover:bg-gray-200 cursor-pointer"
+                :class="{'bg-gray-400': isTransactionSelected(tx.id)}">
               <td class="px-4 py-3 text-center">
                 <div 
                   @click.stop="toggleTransactionSelection(tx.id)"
-                  class="flex items-center justify-center h-8 w-8 mx-auto rounded-md cursor-pointer transition-colors"
-                  :class="isTransactionSelected(tx.id) ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-500'"
+                  class="flex items-center justify-center h-8 w-8 mx-auto cursor-pointer transition-colors"
+                  :class="isTransactionSelected(tx.id) ? 'bg-black text-white' : 'text-gray-400 hover:bg-gray-500'"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -641,9 +638,6 @@ export default {
   position: relative;
 }
 
-tr:nth-child(even) {
-  background-color: rgba(75, 85, 99, 0.3);
-}
 
 .truncate {
   overflow: hidden;
@@ -656,10 +650,8 @@ tr:nth-child(even) {
   --ms-bg: rgb(55, 65, 81);
   --ms-border-color: rgb(75, 85, 99);
   --ms-border-width: 1px;
-  --ms-radius: 0.375rem;
+  --ms-radius: 0.0rem;
   --ms-py: 0.5rem;
-  --ms-font-size: 0.875rem;
-  --ms-line-height: 1.25rem;
   
   /* Dropdown */
   --ms-dropdown-bg: rgb(31, 41, 55);
@@ -680,7 +672,7 @@ tr:nth-child(even) {
   --ms-tag-bg: rgb(124, 58, 237);
   --ms-tag-color: white;
   --ms-tag-border-width: 0px;
-  --ms-tag-radius: 0.25rem;
+  --ms-tag-radius: 0.0rem;
   --ms-tag-font-weight: 500;
   
   /* Search */

@@ -37,7 +37,7 @@
       <div class="flex space-x-2">
         <button
           @click="$emit('edit', category)"
-          class="text-gray-400 hover:text-gray-600 transition-colors p-1 focus:outline-none"
+          class="text-gray-400 hover:text-blue-500 transition-colors p-1 focus:outline-none"
           title="Edit Category"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

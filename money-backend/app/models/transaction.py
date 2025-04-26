@@ -26,6 +26,9 @@ class BankTransaction(db.Model):
     counterparty_iban = db.Column(db.String(34), nullable=True, index=True)
     is_internal_transfer = db.Column(db.Boolean, default=False)
     
+    # New user_id field to associate transactions with specific users
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    
     # The category relationship is already defined in the Category model with backref
     # So we don't need to define it here again
     # Define relationship to Rule model
@@ -33,6 +36,9 @@ class BankTransaction(db.Model):
     
     # New relationship to BankAccount
     bank_account = db.relationship("BankAccount", back_populates="transactions")
+    
+    # New relationship to User
+    user = db.relationship("User", back_populates="transactions")
     
     def __repr__(self):
         return f"<BankTransaction {self.id}: {self.amount}>"

@@ -14,6 +14,7 @@ class User(db.Model):
     categories = db.relationship('Category', back_populates='user', lazy=True)
     rules = db.relationship('Rule', back_populates='user', lazy=True)
     bank_accounts = db.relationship('BankAccount', back_populates='user', lazy=True)
+    transactions = db.relationship('BankTransaction', back_populates='user', lazy=True)
 
     def __repr__(self):
         return f"<User {self.name}>"

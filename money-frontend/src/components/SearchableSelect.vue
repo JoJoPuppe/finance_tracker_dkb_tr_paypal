@@ -2,12 +2,12 @@
   <div class="relative w-full">
     <!-- Select container with search input -->
     <div 
-      class="w-full relative flex items-center bg-gray-700 border border-gray-600 rounded-md transition-all"
-      :class="{'ring-2 ring-purple-400': isOpen}"
+      class="w-full relative flex items-center bg-gray-200 border border-gray-800 transition-all"
+      :class="{'ring-2 ring-gray-400': isOpen}"
       @click="toggleDropdown"
     >
       <!-- Selected value display -->
-      <div class="flex-grow px-3 py-2 flex items-center justify-between">
+      <div class="flex-grow px-3 py-1 flex items-center justify-between">
         <div class="text-white overflow-hidden text-ellipsis whitespace-nowrap">
           {{ displayValue }}
         </div>
@@ -27,11 +27,11 @@
     <!-- Dropdown menu with search and options -->
     <div 
       v-if="isOpen" 
-      class="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-hidden"
+      class="absolute z-50 mt-1 w-full bg-gray-200 border border-gray-600 max-h-60 overflow-hidden"
       v-click-outside="closeDropdown"
     >
       <!-- Search input -->
-      <div class="sticky top-0 bg-gray-800 p-2 border-b border-gray-600">
+      <div class="sticky top-0 bg-gray-200 p-2 border-b border-gray-600">
         <div class="relative">
           <input
             ref="searchInput"

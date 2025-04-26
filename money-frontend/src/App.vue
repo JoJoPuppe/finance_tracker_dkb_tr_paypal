@@ -7,9 +7,6 @@
       <template #rules>
         <RulesEditor />
       </template>
-      <template #transactions>
-        <Transactions :categories="categories" :key="refreshKey" />
-      </template>
     </AppLayout>
   </div>
 </template>

@@ -125,9 +125,10 @@ def update_rule(rule_id):
             rule.logical_operator = data['logical_operator']
             
         if 'conditions' in data:
-            # Remove existing conditions
+            # Remove existing conditions and flush to ensure they're deleted
             for condition in rule.conditions:
                 db.session.delete(condition)
+            db.session.flush()
             
             # Add new conditions
             for idx, condition_data in enumerate(data['conditions']):
@@ -138,11 +139,13 @@ def update_rule(rule_id):
                     }), 400
                     
                 condition = RuleCondition(
+                    rule_id=rule.id,  # Explicitly set the rule_id
                     field=condition_data['field'],
                     operator=condition_data['operator'],
                     value=condition_data['value'],
                     sequence=idx
                 )
+                db.session.add(condition)  # Explicitly add to session
                 rule.conditions.append(condition)
         
         # Commit the changes to the rule and transaction updates
@@ -157,15 +160,20 @@ def update_rule(rule_id):
             # Get all transactions (or we could limit to previously affected ones)
             all_transactions = BankTransaction.query.all()
             
+            # Track if we have changes to commit
+            has_changes = False
+            
             for transaction in all_transactions:
                 # Apply the updated rule to each transaction
                 if RuleEngine.evaluate_rule(transaction, rule):
                     transaction.category_id = rule.category_id
                     transaction.rule_id = rule.id
                     newly_affected_count += 1
+                    has_changes = True
             
-            # Commit the re-application of rules
-            db.session.commit()
+            # Commit the re-application of rules if any changes were made
+            if has_changes:
+                db.session.commit()
 
         return jsonify({
             "status": "success",
@@ -195,12 +203,24 @@ def update_rule(rule_id):
 def delete_rule(rule_id):
     try:
         rule = Rule.query.get_or_404(rule_id)
+        
+        # Find all transactions affected by this rule
+        from app.models.transaction import BankTransaction
+        affected_transactions = BankTransaction.query.filter_by(rule_id=rule_id).all()
+        affected_count = len(affected_transactions)
+        
+        # Reset category_id and rule_id for all affected transactions
+        for transaction in affected_transactions:
+            transaction.category_id = None
+            transaction.rule_id = None
+            
+        # Delete the rule
         db.session.delete(rule)
         db.session.commit()
 
         return jsonify({
             "status": "success",
-            "message": "Rule deleted successfully"
+            "message": f"Rule deleted successfully. {affected_count} transactions have been uncategorized."
         }), 200
     except Exception as e:
         db.session.rollback()
