@@ -31,35 +31,48 @@ class RuleEngine:
     @staticmethod
     def evaluate_rule(transaction: BankTransaction, rule: Rule) -> bool:
         """Evaluate all conditions of a rule against a transaction."""
-        if not rule.conditions:
-            logger.debug(f"Rule {rule.id} has no conditions, skipping")
-            return False
-        
-        # Get the logical operator (default to AND if not specified)
-        logical_operator = getattr(rule, 'logical_operator', 'AND')
-        logger.debug(f"Evaluating rule {rule.id} with {logical_operator} logic")
-        
-        # Evaluate conditions based on the logical operator
-        if logical_operator == 'AND':
-            result = all(
-                RuleEngine.evaluate_condition(transaction, condition)
-                for condition in rule.conditions
-            )
-        elif logical_operator == 'OR':
-            result = any(
-                RuleEngine.evaluate_condition(transaction, condition)
-                for condition in rule.conditions
-            )
-        else:
-            # Default to AND for any other value
-            logger.warning(f"Unknown logical operator '{logical_operator}' for rule {rule.id}, defaulting to AND")
-            result = all(
-                RuleEngine.evaluate_condition(transaction, condition)
-                for condition in rule.conditions
-            )
-        
-        logger.debug(f"Rule {rule.id} evaluation result: {result}")
-        return result
+        try:
+            # Store rule ID safely before any potential detachment issues
+            rule_id = rule.id
+            
+            if not rule.conditions:
+                logger.debug(f"Rule {rule_id} has no conditions, skipping")
+                return False
+            
+            # Get the logical operator (default to AND if not specified)
+            logical_operator = getattr(rule, 'logical_operator', 'AND')
+            logger.debug(f"Evaluating rule {rule_id} with {logical_operator} logic")
+            
+            # Evaluate conditions based on the logical operator
+            if logical_operator == 'AND':
+                result = all(
+                    RuleEngine.evaluate_condition(transaction, condition)
+                    for condition in rule.conditions
+                )
+            elif logical_operator == 'OR':
+                result = any(
+                    RuleEngine.evaluate_condition(transaction, condition)
+                    for condition in rule.conditions
+                )
+            else:
+                # Default to AND for any other value
+                logger.warning(f"Unknown logical operator '{logical_operator}' for rule {rule_id}, defaulting to AND")
+                result = all(
+                    RuleEngine.evaluate_condition(transaction, condition)
+                    for condition in rule.conditions
+                )
+            
+            logger.debug(f"Rule {rule_id} evaluation result: {result}")
+            return result
+        except Exception as e:
+            if "DetachedInstanceError" in str(e) or "is not bound to a Session" in str(e):
+                # Don't try to access any attributes on a potentially detached object
+                logger.warning(f"Rule is detached from session, skipping evaluation")
+                return False
+            else:
+                # For other errors, log without accessing potentially detached attributes
+                logger.error(f"Error evaluating rule: {str(e)}")
+                return False
 
     @staticmethod
     def apply_rules(transaction: BankTransaction, rules: List[Rule]) -> Tuple[bool, Optional[int], Optional[int]]:

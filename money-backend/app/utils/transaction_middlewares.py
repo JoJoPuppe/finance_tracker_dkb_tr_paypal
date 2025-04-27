@@ -112,45 +112,63 @@ class ApplyRulesMiddleware(TransactionMiddleware[T]):
             rules: Optional list of Rule objects. If None, rules will be loaded from the database.
         """
         self.rules = rules
+        self._rules_loaded = False
 
     def _load_rules(self):
         """Load rules from the database if they haven't been provided."""
-        if self.rules is None:
+        if not self._rules_loaded:
             from app.models.rule import Rule
-
-            # Remove filter by active field since it doesn't exist in the model
-            # and change order_by to use created_at which does exist
-            self.rules = Rule.query.order_by(Rule.created_at).all()
+            from sqlalchemy.orm import joinedload
+            from app.models.db import db
+            
+            # Use joinedload to eagerly load rule conditions to prevent detached instance errors
+            self.rules = Rule.query.options(joinedload(Rule.conditions)).order_by(Rule.created_at).all()
+            
+            # Ensure all rule conditions are accessed within this session context
+            for rule in self.rules:
+                # Touch the conditions to ensure they're loaded
+                _ = list(rule.conditions)
+            
+            self._rules_loaded = True
 
     def process(self, transaction: T) -> T:
-        self._load_rules()
+        """Process a transaction by applying rules to it."""
+        try:
+            # Make sure we have rules loaded and they're attached to a session
+            self._load_rules()
+            
+            if isinstance(transaction, dict):
+                # For transaction data dictionary, we can't directly apply rules
+                # We'd need to create a temporary BankTransaction object
+                temp_transaction = BankTransaction()
+                for key, value in transaction.items():
+                    if hasattr(temp_transaction, key):
+                        setattr(temp_transaction, key, value)
 
-        if isinstance(transaction, dict):
-            # For transaction data dictionary, we can't directly apply rules
-            # We'd need to create a temporary BankTransaction object
-            temp_transaction = BankTransaction()
-            for key, value in transaction.items():
-                if hasattr(temp_transaction, key):
-                    setattr(temp_transaction, key, value)
-
-            # Apply rules
-            matched, category_id, rule_id = RuleEngine.apply_rules(
-                temp_transaction, self.rules
-            )
-            if matched:
-                transaction["category_id"] = category_id
-                transaction["rule_id"] = rule_id
-        else:
-            # For BankTransaction object, apply rules directly
-            if not transaction.category_id:  # Only apply if not already categorized
+                # Apply rules
                 matched, category_id, rule_id = RuleEngine.apply_rules(
-                    transaction, self.rules
+                    temp_transaction, self.rules
                 )
                 if matched:
-                    transaction.category_id = category_id
-                    transaction.rule_id = rule_id
+                    transaction["category_id"] = category_id
+                    transaction["rule_id"] = rule_id
+            else:
+                # For BankTransaction object, apply rules directly
+                if not transaction.category_id:  # Only apply if not already categorized
+                    matched, category_id, rule_id = RuleEngine.apply_rules(
+                        transaction, self.rules
+                    )
+                    if matched:
+                        transaction.category_id = category_id
+                        transaction.rule_id = rule_id
 
-        return transaction
+            return transaction
+        except Exception as e:
+            # Log the error but continue processing
+            import logging
+            logger = logging.getLogger('money_backend.transaction_middlewares')
+            logger.error(f"Error in ApplyRulesMiddleware: {str(e)}")
+            return transaction
 
 
 class InternalTransferDetectionMiddleware(TransactionMiddleware[T]):

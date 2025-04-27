@@ -7,6 +7,7 @@ It serves as the main entry point for all transaction processing operations.
 from typing import List, Dict, Any, Optional, Union, Callable
 import logging
 import traceback
+from functools import wraps
 from app.models.db import db
 from app.models.transaction import BankTransaction
 from app.utils.transaction_middleware import transaction_pipeline, TransactionData
@@ -14,12 +15,31 @@ from app.utils.transaction_middleware import transaction_pipeline, TransactionDa
 # Set up logger
 logger = logging.getLogger('money_backend.transaction_service')
 
+# Define the decorator outside the class to avoid circular reference
+def with_consistent_session(func):
+    """
+    Decorator to ensure that database operations happen within the same session.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            # Execute the function within the session context
+            result = func(*args, **kwargs)
+            return result
+        except Exception as e:
+            logger.error(f"Error in database operation: {str(e)}")
+            logger.error(f"Stack trace: {traceback.format_exc()}")
+            db.session.rollback()
+            raise
+    return wrapper
+
 class TransactionService:
     """
     Service for processing bank transactions through the middleware pipeline.
     """
     
     @staticmethod
+    @with_consistent_session
     def process_import_data(transaction_data_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Process a list of transaction dictionaries during import.
@@ -32,6 +52,26 @@ class TransactionService:
         """
         logger.info(f"Processing {len(transaction_data_list)} transactions through middleware pipeline")
         try:
+            # Pre-load rules with their conditions to ensure they're in the current session
+            from app.models.rule import Rule
+            from sqlalchemy.orm import joinedload
+            from app.utils.transaction_middlewares import ApplyRulesMiddleware
+            
+            # Eagerly load rules with their conditions in this session
+            rules = Rule.query.options(joinedload(Rule.conditions)).all()
+            logger.info(f"Preloaded {len(rules)} rules with their conditions")
+            
+            # Access the conditions to ensure they're loaded in this session
+            for rule in rules:
+                _ = list(rule.conditions)
+                
+            # Configure middleware to use the preloaded rules
+            for middleware in transaction_pipeline.middlewares:
+                if isinstance(middleware, ApplyRulesMiddleware):
+                    middleware.rules = rules
+                    middleware._rules_loaded = True
+                    logger.debug(f"Injected preloaded rules into ApplyRulesMiddleware")
+            
             # Process all transactions through the middleware pipeline
             processed_data = transaction_pipeline.process_bulk(transaction_data_list)
             logger.debug(f"Successfully processed {len(processed_data)} transactions through middleware")
@@ -42,6 +82,7 @@ class TransactionService:
             raise
     
     @staticmethod
+    @with_consistent_session
     def save_transactions(transaction_data_list: List[Dict[str, Any]]) -> List[BankTransaction]:
         """
         Save a list of processed transaction data to the database.
@@ -106,6 +147,7 @@ class TransactionService:
             raise
     
     @staticmethod
+    @with_consistent_session
     def import_and_save_transactions(transaction_data_list: List[Dict[str, Any]]) -> List[BankTransaction]:
         """
         Process and save a list of transaction data.
@@ -134,6 +176,7 @@ class TransactionService:
             raise
     
     @staticmethod
+    @with_consistent_session
     def process_existing_transactions(filter_func: Optional[Callable[[BankTransaction], bool]] = None) -> int:
         """
         Process existing transactions in the database through the middleware pipeline.
@@ -206,6 +249,7 @@ class TransactionService:
             return None
     
     @staticmethod
+    @with_consistent_session
     def update_transaction(
         transaction_id: int, 
         updates: Dict[str, Any],
