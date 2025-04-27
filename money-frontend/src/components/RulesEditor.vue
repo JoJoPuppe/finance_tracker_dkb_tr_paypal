@@ -34,6 +34,16 @@
             />
           </label>
 
+          <!-- Create User Button -->
+          <button 
+            @click="openUserModal" 
+            class="bg-blue-600 cursor-pointer hover:bg-blue-700 text-white px-4 py-2 flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            User
+          </button>
           
           <!-- Create Category Button -->
           <button 
@@ -190,6 +200,21 @@
         @error="handleRuleError"
       />
     </Modal>
+
+    <!-- User Modal -->
+    <Modal 
+      :is-open="showUserModal" 
+      title="Manage Users"
+      @close="closeUserModal"
+      @update:isOpen="showUserModal = $event"
+    >
+      <user-form
+        :users="users"
+        @submit-success="handleUserSubmit"
+        @close="closeUserModal"
+        @error="handleUserError"
+      />
+    </Modal>
   </div>
 </template>
 
@@ -204,6 +229,7 @@ import RuleForm from './RuleForm.vue';
 import RuleList from './RuleList.vue';
 import CategoryList from './CategoryList.vue';
 import CategoryForm from './CategoryForm.vue';
+import UserForm from './UserForm.vue'; // Import the new UserForm component
 import Toast from './Toast.vue';
 import Transactions from './Transactions.vue';
 import Modal from './Modal.vue';
@@ -217,6 +243,7 @@ export default {
     RuleList,
     CategoryList,
     CategoryForm,
+    UserForm, // Add the UserForm component
     Toast,
     Transactions,
     Modal
@@ -656,6 +683,63 @@ export default {
     const hideRuleResult = () => {
       ruleApplyResult.value = null;
     };
+
+    // User-related state
+    const showUserModal = ref(false);
+    
+    // User modal functions
+    const openUserModal = () => {
+      fetchUsers();
+      showUserModal.value = true;
+    };
+    
+    const closeUserModal = () => {
+      showUserModal.value = false;
+    };
+    
+    const handleUserSubmit = (result) => {
+      let message;
+      
+      if (result.type === 'create') {
+        message = `User ${result.user.name} created successfully`;
+        users.value.push(result.user);
+      } else if (result.type === 'update') {
+        message = `User ${result.user.name} updated successfully`;
+        const index = users.value.findIndex(user => user.id === result.user.id);
+        if (index !== -1) {
+          users.value[index] = result.user;
+        }
+      } else if (result.type === 'delete') {
+        message = 'User deleted successfully';
+        users.value = users.value.filter(user => user.id !== result.userId);
+      } else if (result.type === 'create-bank-account') {
+        message = `Bank account "${result.bankAccount.name}" created successfully`;
+      } else if (result.type === 'update-bank-account') {
+        message = `Bank account "${result.bankAccount.name}" updated successfully`;
+      } else if (result.type === 'delete-bank-account') {
+        message = 'Bank account deleted successfully';
+      }
+      
+      toast.message = message;
+      toast.type = 'success';
+      toast.isVisible = true;
+      
+      // Auto-hide the toast after 5 seconds
+      setTimeout(() => {
+        toast.isVisible = false;
+      }, 5000);
+      
+      // Only close the modal for user operations, not bank account operations
+      if (['create', 'update', 'delete'].includes(result.type)) {
+        closeUserModal();
+      }
+    };
+    
+    const handleUserError = (errorMessage) => {
+      toast.message = errorMessage;
+      toast.type = 'error';
+      toast.isVisible = true;
+    };
     
     return {
       // Rule data
@@ -716,6 +800,13 @@ export default {
       closeCategoryModal,
       closeRuleModal,
       hideRuleResult,
+
+      // User-related
+      showUserModal,
+      openUserModal,
+      closeUserModal,
+      handleUserSubmit,
+      handleUserError
     };
   }
 };

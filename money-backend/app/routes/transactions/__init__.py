@@ -792,9 +792,14 @@ def get_transactions_by_category(category_id):
         # Get pagination parameters
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 25, type=int)
+        user_id = request.args.get('user_id', None, type=int)  # Get user_id from query params
 
         # Get all transactions with the specified category ID
         query = BankTransaction.query.filter_by(category_id=category_id)
+        
+        # Add user filter if provided
+        if user_id:
+            query = query.filter(BankTransaction.user_id == user_id)
 
         # Apply sorting
         sort_by = request.args.get("sort_by", "booking_date")
@@ -891,98 +896,59 @@ def get_transactions_by_category(category_id):
 
 @bp.route("/uncategorized", methods=["GET"])
 def get_uncategorized_transactions():
+    """
+    Get all transactions that do not have a category assigned.
+    Supports pagination.
+    """
     try:
-        # Get pagination parameters
-        page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 25, type=int)
-
-        # Get all transactions with no category
-        query = BankTransaction.query.filter_by(category_id=None)
-
-        # Apply sorting
-        sort_by = request.args.get("sort_by", "booking_date")
-        sort_order = request.args.get("sort_order", "desc")
-
-        if hasattr(BankTransaction, sort_by):
-            sort_column = getattr(BankTransaction, sort_by)
-            if sort_order == "desc":
-                query = query.order_by(sort_column.desc())
-            else:
-                query = query.order_by(sort_column.asc())
-
-        # Execute paginated query
-        paginated_txs = query.paginate(page=page, per_page=per_page, error_out=False)
-
-        # Prepare pagination metadata
-        args = dict(request.args)
-        if "page" in args:
-            del args["page"]  # Remove page from args to avoid duplication
-
-        next_url = (
-            url_for(
-                "transactions.get_uncategorized_transactions",
-                page=paginated_txs.next_num,
-                **args,
-            )
-            if paginated_txs.has_next
-            else None
-        )
-        prev_url = (
-            url_for(
-                "transactions.get_uncategorized_transactions",
-                page=paginated_txs.prev_num,
-                **args,
-            )
-            if paginated_txs.has_prev
-            else None
-        )
-
-        return jsonify(
-            {
-                "status": "success",
-                "data": {
-                    "category": {
-                        "id": None,
-                        "name": "Uncategorized",
-                        "description": "Transactions without assigned category",
-                    },
-                    "transactions": [
-                        {
-                            "id": tx.id,
-                            "booking_date": tx.booking_date.strftime("%Y-%m-%d")
-                            if tx.booking_date
-                            else None,
-                            "value_date": tx.value_date.strftime("%Y-%m-%d")
-                            if tx.value_date
-                            else None,
-                            "amount": float(tx.amount) if tx.amount else 0.0,
-                            "payee": tx.payee,
-                            "payer": tx.payer,
-                            "purpose": tx.purpose,
-                            "transaction_type": tx.transaction_type,
-                            "iban": tx.iban,
-                            "creditor_id": tx.creditor_id,
-                            "mandate_reference": tx.mandate_reference,
-                            "customer_reference": tx.customer_reference,
-                            "transaction_hash": tx.transaction_hash,
-                        }
-                        for tx in paginated_txs.items
-                    ],
-                    "pagination": {
-                        "page": page,
-                        "per_page": per_page,
-                        "total_pages": paginated_txs.pages,
-                        "total_items": paginated_txs.total,
-                        "next_url": next_url,
-                        "prev_url": prev_url,
-                    },
-                },
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 25, type=int), 100)  # Limit to 100 items max
+        user_id = request.args.get('user_id', None, type=int)  # Get user_id from query params
+        
+        # Base query for transactions without a category
+        query = BankTransaction.query.filter(BankTransaction.category_id.is_(None))
+        
+        # Add user filter if provided
+        if user_id:
+            query = query.filter(BankTransaction.user_id == user_id)
+        
+        # Order by booking date (newest first)
+        query = query.order_by(BankTransaction.booking_date.desc())
+        
+        # Apply pagination
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Format the response
+        return jsonify({
+            "status": "success",
+            "data": {
+                "transactions": [
+                    {
+                        "id": tx.id,
+                        "booking_date": tx.booking_date.isoformat() if tx.booking_date else None,
+                        "value_date": tx.value_date.isoformat() if tx.value_date else None,
+                        "amount": float(tx.amount) if tx.amount is not None else None,
+                        "purpose": tx.purpose,
+                        "payee": tx.payee,
+                        "payer": tx.payer,
+                        "category_id": tx.category_id,
+                        "transaction_hash": tx.transaction_hash
+                    }
+                    for tx in pagination.items
+                ],
+                "pagination": {
+                    "page": pagination.page,
+                    "per_page": pagination.per_page,
+                    "total_items": pagination.total,
+                    "total_pages": pagination.pages
+                }
             }
-        ), 200
+        }), 200
+        
     except Exception as e:
-        return jsonify(
-            {"status": "error", "message": str(e), "error_type": type(e).__name__}
-        ), 500
+        logger.error(f"Error in get_uncategorized_transactions: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @bp.route("/search", methods=["GET"])
@@ -993,6 +959,7 @@ def search_transactions():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 25, type=int)
         category_id = request.args.get("category_id")
+        user_id = request.args.get('user_id', None, type=int)  # Get user_id from query params
 
         # Validate search term
         if not search_term or len(search_term) < 2:
@@ -1012,6 +979,10 @@ def search_transactions():
                 query = query.filter(BankTransaction.category_id == None)
             elif category_id.isdigit():
                 query = query.filter(BankTransaction.category_id == int(category_id))
+                
+        # Add user filter if provided
+        if user_id:
+            query = query.filter(BankTransaction.user_id == user_id)
 
         # Add fuzzy search across multiple columns
         search_term = f"%{search_term}%"

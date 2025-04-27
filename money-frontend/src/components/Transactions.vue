@@ -2,7 +2,7 @@
   <div class="h-full flex flex-col">
     
     <!-- Category Selection -->
-    <div class="mb-4">
+    <div class="mb-4 pb-6">
       <div class="flex gap-x-3 w-2/3 items-center">
         <Multiselect
           v-model="selectedCategoryId"
@@ -24,8 +24,8 @@
           </span>
           <span v-else>Submit</span>
         </button>
-        <div class="w-full">
-          <div class="relative w-full">
+        <div class="w-full flex gap-x-2">
+          <div class="relative w-2/3">
             <input
               id="search-input"
               v-model="searchQuery"
@@ -43,6 +43,16 @@
               <span class="inline-block w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></span>
             </div>
           </div>
+          <Multiselect
+            v-model="selectedUserId"
+            :options="userOptions"
+            :searchable="true"
+            placeholder="Filter by user"
+            label="label"
+            valueProp="value"
+            class="user-select w-1/3"
+            @change="onUserChange"
+          />
           <p v-if="searchQuery && searchQuery.length > 0 && searchQuery.length < minSearchChars" class="mt-1 text-xs text-gray-600">
             Enter at least {{ minSearchChars }} characters to search
           </p>
@@ -53,7 +63,7 @@
     <!-- Search Transactions -->
     
     <!-- Batch Update Category Section (shown when transactions are selected) -->
-    <div v-if="selectedTransactions.length > 0" class="py-3 ">
+    <div v-if="selectedTransactions.length > 0" class="my-2 pb-6 border-b border-b-black">
       <div class="flex items-center justify-between">
         <span class="text-gray-600 font-medium">{{ selectedTransactions.length }} transaction(s) selected</span>
         <button @click="clearSelection" class="text-gray-600 hover:text-gray-900 text-sm underline">Clear selection</button>
@@ -217,6 +227,10 @@ export default {
     const isSearching = ref(false);
     const minSearchChars = 3;
     const isSearchMode = ref(false); // Flag to track if we're in search mode
+    
+    // User selection functionality
+    const selectedUserId = ref('');
+    const userOptions = ref([]); // Populate this with user options as needed
     
     // Create sorted category options
     const sortedCategoryOptions = computed(() => {
@@ -421,7 +435,8 @@ export default {
       const response = await axios.get(url, {
         params: {
           page: page,
-          per_page: initialLoadCount
+          per_page: initialLoadCount,
+          user_id: selectedUserId.value || undefined // Only add user_id if it's selected
         }
       });
       
@@ -520,6 +535,9 @@ export default {
       
       // Add window resize listener to handle viewport size changes
       window.addEventListener('resize', checkInitialViewportSize);
+
+      // Fetch users when component mounts
+      fetchUsers();
     });
     
     // Clean up event listeners when component is unmounted
@@ -592,6 +610,35 @@ export default {
       }
     }, 300); // 300ms debounce delay
     
+    // Fetch users and populate dropdown
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get('/api/v1/users');
+        if (response.data && response.data.status === 'success') {
+          // Add an "All Users" option at the beginning
+          userOptions.value = [
+            { value: '', label: 'All Users' }
+          ];
+          
+          // Add each user as an option
+          response.data.data.forEach(user => {
+            userOptions.value.push({
+              value: user.id,
+              label: user.name
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+
+    // Handle user selection change
+    const onUserChange = () => {
+      // When user selection changes, reload the transactions
+      loadTransactions();
+    };
+    
     return {
       selectedCategoryId,
       transactions,
@@ -623,7 +670,11 @@ export default {
       onSearchInput,
       // Sorted category options
       sortedCategoryOptions,
-      sortedBatchCategoryOptions
+      sortedBatchCategoryOptions,
+      // User selection functionality
+      selectedUserId,
+      userOptions,
+      onUserChange
     };
   }
 };

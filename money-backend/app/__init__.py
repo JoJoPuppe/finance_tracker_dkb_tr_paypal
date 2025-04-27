@@ -36,11 +36,13 @@ def create_app(config_class=Config):
     from .routes.categories import bp as categories_bp
     from .routes.rules import bp as rules_bp
     from .routes.users import bp as users_bp
+    from .routes.bank_accounts import bp as bank_accounts_bp
     
     app.register_blueprint(transactions_bp)
     app.register_blueprint(categories_bp)
     app.register_blueprint(rules_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(bank_accounts_bp)
     
     # Create alternative routes for frontend compatibility
     from flask import Blueprint
@@ -64,12 +66,14 @@ def create_app(config_class=Config):
     categories_alt = create_alt_blueprint(categories_bp, '/api/categories', 'alt')
     rules_alt = create_alt_blueprint(rules_bp, '/api/rules', 'alt')
     users_alt = create_alt_blueprint(users_bp, '/api/users', 'alt')
+    bank_accounts_alt = create_alt_blueprint(bank_accounts_bp, '/api/bank_accounts', 'alt')
     
     # Register alternative blueprints
     app.register_blueprint(transactions_alt)
     app.register_blueprint(categories_alt)
     app.register_blueprint(rules_alt)
     app.register_blueprint(users_alt)
+    app.register_blueprint(bank_accounts_alt)
     
     # Register error handlers
     register_error_handlers(app)
